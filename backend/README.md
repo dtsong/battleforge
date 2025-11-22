@@ -113,7 +113,7 @@ The API follows REST conventions with consistent JSON request/response formats.
      ```json
      {
        "analysisType": "username",
-       "username": "Heliosan",
+       "username": "Player1",
        "format": "gen9vgc2025reghbo3",
        "isPrivate": false,
        "limit": 5
@@ -246,7 +246,7 @@ curl -X POST http://localhost:8080/api/showdown/analyze \
   -H "Content-Type: application/json" \
   -d '{
     "analysisType": "rawLog",
-    "rawLog": "|j|☆Heliosan\n|j|☆Opponent\n|switch|p1a: Pikachu|pikachu|50|M|100/100\n|switch|p2a: Charizard|charizard|50|M|100/100\n|turn|1\n|move|p1|Thunderbolt\n|-damage|p2a: Charizard|70/100|[from] move: Thunderbolt [of] p1a: Pikachu\n|turn|2\n|move|p2|Flamethrower\n|-damage|p1a: Pikachu|50/100\n|win|Heliosan",
+    "rawLog": "|j|☆Player1\n|j|☆Player2\n|switch|p1a: Pikachu|pikachu|50|M|100/100\n|switch|p2a: Charizard|charizard|50|M|100/100\n|turn|1\n|move|p1|Thunderbolt\n|-damage|p2a: Charizard|70/100|[from] move: Thunderbolt [of] p1a: Pikachu\n|turn|2\n|move|p2|Flamethrower\n|-damage|p1a: Pikachu|50/100\n|win|Player1",
     "isPrivate": true
   }'
 ```
@@ -262,14 +262,14 @@ curl -X POST http://localhost:8080/api/showdown/analyze \
     "timestamp": "2025-11-22T10:30:00Z",
     "duration": 60,
     "player1": {
-      "name": "Heliosan",
+      "name": "Player1",
       "team": [/* 6 Pokémon */],
       "active": {/* Pikachu */},
       "losses": 0,
       "totalLeft": 6
     },
     "player2": {
-      "name": "Opponent",
+      "name": "Player2",
       "team": [/* 6 Pokémon */],
       "active": {/* Charizard */},
       "losses": 0,
@@ -305,7 +305,7 @@ curl -X POST http://localhost:8080/api/showdown/analyze \
 #### Example 3: List Replays with Filters
 
 ```bash
-curl "http://localhost:8080/api/showdown/replays?username=Heliosan&format=gen9vgc2025reghbo3&limit=5&offset=0"
+curl "http://localhost:8080/api/showdown/replays?username=Player1&format=gen9vgc2025reghbo3&limit=5&offset=0"
 ```
 
 **Response (200 OK):**
@@ -465,14 +465,14 @@ The analysis output contains:
   "timestamp": "2025-11-22T10:30:00Z",
   "duration": 720,
   "player1": {
-    "name": "Heliosan",
+    "name": "Player1",
     "team": [/* 6 Pokémon */],
     "active": {/* current Pokémon */},
     "losses": 2,
     "totalLeft": 4
   },
   "player2": {
-    "name": "Opponent",
+    "name": "Player2",
     "team": [/* 6 Pokémon */],
     "active": {/* current Pokémon */},
     "losses": 1,
@@ -501,8 +501,8 @@ The analysis output contains:
         "player1Team": ["Pikachu", "Dragonite", ...],
         "player2Team": ["Charizard", "Hydreigon", ...]
       },
-      "damageDealt": {"Heliosan": 70},
-      "healingDone": {"Opponent": 25}
+      "damageDealt": {"Player1": 70},
+      "healingDone": {"Player2": 25}
     }
   ],
   "stats": {
@@ -533,7 +533,7 @@ The analysis output contains:
     },
     {
       "turnNumber": 5,
-      "description": "Heliosan switched to Dragonite",
+      "description": "Player1 switched to Dragonite",
       "type": "switch",
       "significance": 6
     }
