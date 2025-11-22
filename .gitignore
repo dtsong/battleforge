@@ -1,0 +1,75 @@
+# Go
+bin/
+dist/
+*.exe
+*.exe~
+*.dll
+*.so
+*.so.*
+*.dylib
+*.test
+*.out
+vendor/
+*.swp
+*.swo
+*~
+
+# Go mod
+go.sum
+
+# IDE / Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+*.iml
+
+# Next.js
+node_modules/
+/.next/
+/out/
+.next
+dist
+build
+
+# Next.js cache
+.vercel
+.turbo
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Terraform
+.terraform/
+.terraform.lock.hcl
+*.tfvars
+*.tfvars.json
+*.tfstate
+*.tfstate.*
+override.tf.json
+crash.log
+crash.*.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# Logs
+logs/
+*.log
+
+# OS
+.DS_Store
+.AppleDouble
+.LSOverride
+Thumbs.db
+
+# Misc
+.cache/
+*.pid
+*.seed
+*.pid.lock
