@@ -1,0 +1,795 @@
+openapi: 3.0.0
+info:
+  title: BattleForge API
+  description: Full-stack platform for analyzing competitive Pokémon gameplay. Supports Pokémon Showdown replays and TCG Live game exports.
+  version: 1.0.0
+  contact:
+    name: BattleForge Team
+  license:
+    name: MIT
+
+servers:
+  - url: http://localhost:8080
+    description: Local development server
+  - url: https://api.battleforge.dev
+    description: Production server (planned)
+
+paths:
+  /healthz:
+    get:
+      summary: Health check
+      description: Returns the health status of the API
+      operationId: healthCheck
+      tags:
+        - Health
+      responses:
+        '200':
+          description: API is healthy
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: "ok"
+
+  /api/showdown/analyze:
+    post:
+      summary: Analyze a Pokémon Showdown replay
+      description: >
+        Analyzes a Pokémon Showdown battle replay and returns a structured
+        BattleSummary with detailed battle statistics, turn-by-turn actions,
+        key moments, and player performance metrics.
+      operationId: analyzeShowdownReplay
+      tags:
+        - Showdown Analysis
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AnalyzeShowdownRequest'
+            examples:
+              byReplayId:
+                summary: Analyze using Showdown replay ID
+                value:
+                  replayId: "gen9vgc2025reghbo3-2481642254"
+                  isPrivate: false
+              byUsername:
+                summary: Analyze recent battles by username
+                value:
+                  username: "Heliosan"
+                  format: "gen9vgc2025reghbo3"
+                  isPrivate: false
+                  limit: 5
+              byRawLog:
+                summary: Analyze raw battle log
+                value:
+                  rawLog: "|j|☆Player1\n|j|☆Player2\n|html|<table>..."
+                  isPrivate: true
+      responses:
+        '200':
+          description: Successfully analyzed replay
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AnalyzeShowdownResponse'
+        '400':
+          description: Invalid request parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Invalid request: must provide either replayId, username, or rawLog"
+                code: "INVALID_REQUEST"
+        '404':
+          description: Replay or user not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Replay not found"
+                code: "NOT_FOUND"
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Failed to parse replay log"
+                code: "PARSE_ERROR"
+
+  /api/showdown/replays:
+    get:
+      summary: List Showdown replays
+      description: >
+        Retrieves a list of analyzed Showdown replays, optionally filtered by
+        username, format, and privacy settings.
+      operationId: listShowdownReplays
+      tags:
+        - Showdown Analysis
+      parameters:
+        - name: username
+          in: query
+          description: Filter by player username (searches both players)
+          schema:
+            type: string
+          example: "Heliosan"
+        - name: format
+          in: query
+          description: Filter by battle format (e.g., gen9vgc2025reghbo3)
+          schema:
+            type: string
+          example: "gen9vgc2025reghbo3"
+        - name: isPrivate
+          in: query
+          description: Filter by privacy status (true for private, false for public)
+          schema:
+            type: boolean
+          example: false
+        - name: limit
+          in: query
+          description: Maximum number of replays to return
+          schema:
+            type: integer
+            default: 10
+            minimum: 1
+            maximum: 100
+          example: 10
+        - name: offset
+          in: query
+          description: Number of replays to skip for pagination
+          schema:
+            type: integer
+            default: 0
+            minimum: 0
+          example: 0
+      responses:
+        '200':
+          description: Successfully retrieved replays
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListReplaysResponse'
+        '400':
+          description: Invalid query parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/showdown/replays/{replayId}:
+    get:
+      summary: Get a specific Showdown replay analysis
+      description: Retrieves the full BattleSummary for a specific replay ID
+      operationId: getShowdownReplay
+      tags:
+        - Showdown Analysis
+      parameters:
+        - name: replayId
+          in: path
+          required: true
+          description: The Showdown replay ID (e.g., gen9vgc2025reghbo3-2481642254)
+          schema:
+            type: string
+          example: "gen9vgc2025reghbo3-2481642254"
+      responses:
+        '200':
+          description: Successfully retrieved replay analysis
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AnalyzeShowdownResponse'
+        '404':
+          description: Replay not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/tcglive/analyze:
+    post:
+      summary: Analyze a Pokémon TCG Live game export
+      description: >
+        Analyzes a Pokémon TCG Live game export and returns a structured
+        analysis with game statistics and key moments.
+      operationId: analyzeTCGLiveGame
+      tags:
+        - TCG Live Analysis
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AnalyzeTCGLiveRequest'
+      responses:
+        '200':
+          description: Successfully analyzed game
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AnalyzeTCGLiveResponse'
+        '400':
+          description: Invalid request parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '501':
+          description: TCG Live analysis not yet implemented
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "TCG Live analysis is planned for a future release"
+                code: "NOT_IMPLEMENTED"
+
+components:
+  schemas:
+    AnalyzeShowdownRequest:
+      type: object
+      description: Request to analyze a Pokémon Showdown replay
+      oneOf:
+        - $ref: '#/components/schemas/AnalyzeByReplayId'
+        - $ref: '#/components/schemas/AnalyzeByUsername'
+        - $ref: '#/components/schemas/AnalyzeByRawLog'
+      discriminator:
+        propertyName: analysisType
+
+    AnalyzeByReplayId:
+      type: object
+      description: Analyze a specific replay by its Showdown ID
+      required:
+        - replayId
+      properties:
+        analysisType:
+          type: string
+          const: "replayId"
+        replayId:
+          type: string
+          description: Showdown replay ID (format-number, e.g., gen9vgc2025reghbo3-2481642254)
+          example: "gen9vgc2025reghbo3-2481642254"
+        isPrivate:
+          type: boolean
+          description: Whether to fetch private replays (requires authentication in future)
+          default: false
+          example: false
+
+    AnalyzeByUsername:
+      type: object
+      description: Analyze recent battles by a player username
+      required:
+        - username
+        - format
+      properties:
+        analysisType:
+          type: string
+          const: "username"
+        username:
+          type: string
+          description: Pokémon Showdown username
+          example: "Heliosan"
+        format:
+          type: string
+          description: Battle format to search (e.g., gen9vgc2025reghbo3)
+          example: "gen9vgc2025reghbo3"
+        isPrivate:
+          type: boolean
+          description: Include private replays (requires authentication in future)
+          default: false
+          example: false
+        limit:
+          type: integer
+          description: Maximum number of replays to analyze
+          minimum: 1
+          maximum: 50
+          default: 5
+          example: 5
+
+    AnalyzeByRawLog:
+      type: object
+      description: Analyze a raw Pokémon Showdown battle log
+      required:
+        - rawLog
+      properties:
+        analysisType:
+          type: string
+          const: "rawLog"
+        rawLog:
+          type: string
+          description: Raw Showdown battle log content (pipe-delimited format)
+          example: "|j|☆Player1\n|j|☆Player2\n|start"
+        isPrivate:
+          type: boolean
+          description: Mark analysis as private
+          default: true
+          example: true
+
+    AnalyzeTCGLiveRequest:
+      type: object
+      description: Request to analyze a Pokémon TCG Live game export
+      required:
+        - gameExport
+      properties:
+        gameExport:
+          type: string
+          description: Raw TCG Live game export content
+        isPrivate:
+          type: boolean
+          description: Mark analysis as private
+          default: true
+
+    AnalyzeShowdownResponse:
+      type: object
+      description: Response containing analyzed Showdown battle data
+      required:
+        - status
+        - data
+      properties:
+        status:
+          type: string
+          enum: [success, error]
+          example: "success"
+        battleId:
+          type: string
+          format: uuid
+          description: Unique identifier for the stored battle analysis
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        data:
+          $ref: '#/components/schemas/BattleSummary'
+        metadata:
+          type: object
+          properties:
+            parseTimeMs:
+              type: integer
+              description: Time taken to parse the replay (milliseconds)
+              example: 45
+            analysisTimeMs:
+              type: integer
+              description: Time taken to analyze the replay (milliseconds)
+              example: 120
+            cached:
+              type: boolean
+              description: Whether this result was cached
+              example: false
+
+    AnalyzeTCGLiveResponse:
+      type: object
+      description: Response containing analyzed TCG Live game data (planned)
+      properties:
+        status:
+          type: string
+          enum: [success, error]
+          example: "success"
+        data:
+          type: object
+          description: TCG Live analysis data (schema TBD)
+
+    ListReplaysResponse:
+      type: object
+      description: Response containing a list of replay analyses
+      required:
+        - status
+        - data
+        - pagination
+      properties:
+        status:
+          type: string
+          enum: [success, error]
+          example: "success"
+        data:
+          type: array
+          items:
+            type: object
+            properties:
+              battleId:
+                type: string
+                format: uuid
+              replayId:
+                type: string
+                example: "gen9vgc2025reghbo3-2481642254"
+              format:
+                type: string
+                example: "gen9vgc2025reghbo3"
+              player1:
+                type: string
+                example: "Heliosan"
+              player2:
+                type: string
+                example: "Player1"
+              winner:
+                type: string
+                enum: [player1, player2, draw]
+              timestamp:
+                type: string
+                format: date-time
+              duration:
+                type: integer
+                description: Battle duration in seconds
+        pagination:
+          type: object
+          properties:
+            limit:
+              type: integer
+              example: 10
+            offset:
+              type: integer
+              example: 0
+            total:
+              type: integer
+              description: Total number of replays matching the filter
+              example: 42
+
+    BattleSummary:
+      type: object
+      description: Complete analysis of a Pokémon battle
+      required:
+        - id
+        - format
+        - timestamp
+        - duration
+        - player1
+        - player2
+        - winner
+        - turns
+        - stats
+        - keyMoments
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique battle identifier
+        format:
+          type: string
+          description: Battle format (e.g., Regulation H)
+          example: "Regulation H"
+        timestamp:
+          type: string
+          format: date-time
+        duration:
+          type: integer
+          description: Battle duration in seconds
+        player1:
+          $ref: '#/components/schemas/Player'
+        player2:
+          $ref: '#/components/schemas/Player'
+        winner:
+          type: string
+          enum: [player1, player2, draw]
+          example: "player1"
+        turns:
+          type: array
+          items:
+            $ref: '#/components/schemas/Turn'
+        stats:
+          $ref: '#/components/schemas/BattleStats'
+        keyMoments:
+          type: array
+          items:
+            $ref: '#/components/schemas/KeyMoment'
+
+    Player:
+      type: object
+      description: Information about a player in the battle
+      required:
+        - name
+        - team
+        - losses
+        - totalLeft
+      properties:
+        name:
+          type: string
+          example: "Heliosan"
+        team:
+          type: array
+          items:
+            $ref: '#/components/schemas/Pokémon'
+        active:
+          $ref: '#/components/schemas/Pokémon'
+          nullable: true
+        losses:
+          type: integer
+          description: Number of fainted Pokémon
+        totalLeft:
+          type: integer
+          description: Number of Pokémon still in battle
+
+    Pokémon:
+      type: object
+      description: A single Pokémon with stats and moves
+      required:
+        - id
+        - name
+        - level
+        - ability
+        - item
+        - stats
+        - moves
+      properties:
+        id:
+          type: string
+          description: Pokémon species ID (e.g., pikachu)
+        name:
+          type: string
+          example: "Pikachu"
+        level:
+          type: integer
+          example: 50
+        gender:
+          type: string
+          enum: [M, F, ""]
+          example: "M"
+        ability:
+          type: string
+          example: "Static"
+        item:
+          type: string
+          example: "Choice Band"
+        stats:
+          $ref: '#/components/schemas/Stats'
+        moves:
+          type: array
+          items:
+            $ref: '#/components/schemas/Move'
+        happiness:
+          type: integer
+          minimum: 0
+          maximum: 255
+        shiny:
+          type: boolean
+          default: false
+
+    Move:
+      type: object
+      description: A Pokémon move
+      required:
+        - id
+        - name
+        - type
+      properties:
+        id:
+          type: string
+          description: Move ID (e.g., thunderbolt)
+        name:
+          type: string
+          example: "Thunderbolt"
+        type:
+          type: string
+          example: "Electric"
+        power:
+          type: integer
+          description: Base power (0 if N/A)
+        accuracy:
+          type: integer
+          description: Accuracy percentage (0-100, 0 if N/A)
+        pp:
+          type: integer
+          description: Power Points
+
+    Stats:
+      type: object
+      description: Pokémon base statistics
+      required:
+        - hp
+        - attack
+        - defense
+        - spAtk
+        - spDef
+        - speed
+      properties:
+        hp:
+          type: integer
+        attack:
+          type: integer
+        defense:
+          type: integer
+        spAtk:
+          type: integer
+        spDef:
+          type: integer
+        speed:
+          type: integer
+
+    Turn:
+      type: object
+      description: A single turn in the battle
+      required:
+        - turnNumber
+        - actions
+        - stateAfter
+      properties:
+        turnNumber:
+          type: integer
+        actions:
+          type: array
+          items:
+            $ref: '#/components/schemas/Action'
+        stateAfter:
+          $ref: '#/components/schemas/BattleState'
+        damageDealt:
+          type: object
+          additionalProperties:
+            type: integer
+          description: Player name to damage dealt
+        healingDone:
+          type: object
+          additionalProperties:
+            type: integer
+          description: Player name to healing done
+
+    Action:
+      type: object
+      description: An action taken during a turn
+      required:
+        - player
+        - actionType
+      properties:
+        player:
+          type: string
+          enum: [player1, player2]
+        actionType:
+          type: string
+          enum: [move, switch, item]
+        move:
+          $ref: '#/components/schemas/Move'
+          nullable: true
+        switchTo:
+          type: string
+          description: Pokémon name if action is switch
+          nullable: true
+        item:
+          type: string
+          description: Item used if action is item
+          nullable: true
+
+    BattleState:
+      type: object
+      description: State of the battle at a point in time
+      properties:
+        player1Active:
+          $ref: '#/components/schemas/Pokémon'
+          nullable: true
+        player2Active:
+          $ref: '#/components/schemas/Pokémon'
+          nullable: true
+        player1Team:
+          type: array
+          items:
+            type: string
+          description: Names of alive Pokémon
+        player2Team:
+          type: array
+          items:
+            type: string
+          description: Names of alive Pokémon
+
+    BattleStats:
+      type: object
+      description: Aggregate battle statistics
+      required:
+        - totalTurns
+        - player1Stats
+        - player2Stats
+      properties:
+        totalTurns:
+          type: integer
+        moveFrequency:
+          type: object
+          additionalProperties:
+            type: integer
+          description: Move ID to count
+        typeCoverage:
+          type: object
+          additionalProperties:
+            type: integer
+          description: Type to count
+        switches:
+          type: integer
+        criticalHits:
+          type: integer
+        superEffective:
+          type: integer
+        notVeryEffective:
+          type: integer
+        avgDamagePerTurn:
+          type: number
+          format: float
+        avgHealPerTurn:
+          type: number
+          format: float
+        player1Stats:
+          $ref: '#/components/schemas/PlayerStats'
+        player2Stats:
+          $ref: '#/components/schemas/PlayerStats'
+
+    PlayerStats:
+      type: object
+      description: Statistics for an individual player
+      properties:
+        moveCount:
+          type: integer
+        switchCount:
+          type: integer
+        damageDealt:
+          type: integer
+        damageTaken:
+          type: integer
+        healingDone:
+          type: integer
+        healingReceived:
+          type: integer
+        movesByType:
+          type: object
+          additionalProperties:
+            type: integer
+        effectiveness:
+          $ref: '#/components/schemas/EffectivenessStats'
+
+    EffectivenessStats:
+      type: object
+      description: Type effectiveness statistics
+      properties:
+        superEffective:
+          type: integer
+        notVeryEffective:
+          type: integer
+        neutral:
+          type: integer
+
+    KeyMoment:
+      type: object
+      description: A significant moment in the battle
+      required:
+        - turnNumber
+        - description
+        - type
+      properties:
+        turnNumber:
+          type: integer
+        description:
+          type: string
+          example: "Player 2 switched to Charizard"
+        type:
+          type: string
+          enum: [switch, ko, status, weather, critical, other]
+        significance:
+          type: integer
+          description: Importance scale (1-10)
+          minimum: 1
+          maximum: 10
+
+    ErrorResponse:
+      type: object
+      description: Error response
+      required:
+        - error
+        - code
+      properties:
+        error:
+          type: string
+          description: Human-readable error message
+        code:
+          type: string
+          description: Machine-readable error code
+          enum:
+            - INVALID_REQUEST
+            - NOT_FOUND
+            - PARSE_ERROR
+            - UNAUTHORIZED
+            - FORBIDDEN
+            - INTERNAL_ERROR
+            - NOT_IMPLEMENTED
+        details:
+          type: object
+          description: Additional error details
+          nullable: true
+
+tags:
+  - name: Health
+    description: Health check endpoints
+  - name: Showdown Analysis
+    description: Pokémon Showdown replay analysis endpoints
+  - name: TCG Live Analysis
+    description: Pokémon TCG Live game analysis endpoints (planned)

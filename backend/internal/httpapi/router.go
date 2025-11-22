@@ -1,7 +1,6 @@
 package httpapi
 
 import (
-	"encoding/json"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
@@ -10,6 +9,7 @@ import (
 
 type Server struct {
 	logger *observability.Logger
+	// db     *db.Database // Will be added when DB integration is complete
 }
 
 func NewRouter(logger *observability.Logger) http.Handler {
@@ -17,12 +17,13 @@ func NewRouter(logger *observability.Logger) http.Handler {
 
 	r := chi.NewRouter()
 
-	// Basic health check
+	// Health check endpoint
 	r.Get("/healthz", s.handleHealth)
 
 	// Showdown analysis endpoints
 	r.Post("/api/showdown/analyze", s.handleAnalyzeShowdown)
-	r.Get("/api/showdown/battles/{battleID}", s.handleGetShowdownBattle)
+	r.Get("/api/showdown/replays", s.handleListShowdownReplays)
+	r.Get("/api/showdown/replays/{replayId}", s.handleGetShowdownReplay)
 
 	// TCG Live endpoint (planned)
 	r.Post("/api/tcglive/analyze", s.handleAnalyzeTCGLive)
@@ -31,7 +32,7 @@ func NewRouter(logger *observability.Logger) http.Handler {
 }
 
 func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Content-Type", "text/plain")
 	w.WriteHeader(http.StatusOK)
-	_ = json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
+	_, _ = w.Write([]byte("ok"))
 }

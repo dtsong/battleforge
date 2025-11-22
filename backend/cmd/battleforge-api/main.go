@@ -4,12 +4,21 @@ import (
 	"net/http"
 	"os"
 
+	_ "github.com/lib/pq"
 	"github.com/dtsong/battleforge/backend/internal/httpapi"
 	"github.com/dtsong/battleforge/backend/internal/observability"
 )
 
 func main() {
 	logger := observability.NewLogger()
+
+	// TODO: Initialize database connection
+	// dbConnString := getDBConnString()
+	// db, err := db.NewDatabase(dbConnString)
+	// if err != nil {
+	// 	logger.Fatalf("failed to initialize database: %v", err)
+	// }
+	// defer db.Close()
 
 	addr := getAddr()
 	logger.Infof("starting battleforge-api on %s", addr)
