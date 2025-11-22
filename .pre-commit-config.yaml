@@ -1,0 +1,67 @@
+repos:
+  # 1) Generic repo-wide hygiene
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.6.0  # or latest; run `pre-commit autoupdate` periodically :contentReference[oaicite:2]{index=2}
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-json
+      - id: check-added-large-files
+
+  # 2) Go + Terraform hooks (Gruntwork collection)
+  - repo: https://github.com/gruntwork-io/pre-commit
+    rev: v0.1.30  # latest tagged release
+    hooks:
+      # Go formatting & imports
+      - id: gofmt
+        files: ^backend/.*\.go$
+      - id: goimports
+        files: ^backend/.*\.go$
+
+      # Go static analysis (requires golangci-lint installed)
+      - id: golangci-lint
+        files: ^backend/.*\.go$
+
+      # Terraform formatting & validation
+      - id: terraform-fmt
+        files: ^infra/terraform/.*\.tf$
+      - id: terraform-validate
+        files: ^infra/terraform/.*\.tf$
+
+      # Terraform linting (requires tflint installed)
+      - id: tflint
+        files: ^infra/terraform/.*\.tf$
+
+  # 3) Local hooks for the Next.js frontend
+  - repo: local
+    hooks:
+      - id: frontend-lint
+        name: frontend lint (Next.js)
+        entry: bash
+        language: system
+        pass_filenames: false
+        args:
+          - -c
+          - |
+            cd frontend && npm run lint
+
+      - id: frontend-typecheck
+        name: frontend typecheck (TypeScript)
+        entry: bash
+        language: system
+        pass_filenames: false
+        args:
+          - -c
+          - |
+            cd frontend && npm run typecheck
+
+      - id: backend-test
+        name: backend go test ./...
+        entry: bash
+        language: system
+        pass_filenames: false
+        args:
+          - -c
+          - |
+            cd backend && go test ./...
