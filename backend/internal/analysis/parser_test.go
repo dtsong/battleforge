@@ -400,3 +400,266 @@ func malformedBattleLog() string {
 it has no pipe delimiters
 and no proper structure`
 }
+
+// Edge case tests for comprehensive coverage
+
+func TestParseShowdownLogDamageTracking(t *testing.T) {
+	log := sampleBattleLog()
+	summary, _ := ParseShowdownLog(log)
+
+	// Verify damage is tracked
+	p1Damage := summary.Stats.Player1Stats.DamageDealt
+	p2Damage := summary.Stats.Player2Stats.DamageDealt
+	if p1Damage <= 0 && p2Damage <= 0 {
+		t.Error("expected damage to be tracked for at least one player")
+	}
+}
+
+func TestParseShowdownLogEffectiveness(t *testing.T) {
+	log := sampleBattleLog()
+	summary, _ := ParseShowdownLog(log)
+
+	if summary.Stats.SuperEffective < 0 {
+		t.Error("expected super effective moves count to be non-negative")
+	}
+
+	if summary.Stats.NotVeryEffective < 0 {
+		t.Error("expected not very effective moves count to be non-negative")
+	}
+}
+
+func TestParseShowdownLogTurningPoints(t *testing.T) {
+	log := sampleBattleLog()
+	summary, _ := ParseShowdownLog(log)
+
+	// Turning points may or may not exist depending on battle dynamics
+	// Just verify the structure is valid
+	for _, tp := range summary.Stats.TurningPoints {
+		if tp.TurnNumber <= 0 {
+			t.Error("expected turn number to be positive")
+		}
+
+		if tp.Score1Before < 0 || tp.Score1Before > 100 {
+			t.Errorf("expected score1Before to be 0-100, got %v", tp.Score1Before)
+		}
+	}
+}
+
+func TestParseShowdownLogPositionScores(t *testing.T) {
+	log := sampleBattleLog()
+	summary, _ := ParseShowdownLog(log)
+
+	// Verify position scores for each turn
+	for i, turn := range summary.Turns {
+		if turn.PositionScore == nil {
+			t.Errorf("turn %d: expected position score", i+1)
+			continue
+		}
+
+		// Scores should be between 0 and 100
+		if turn.PositionScore.Player1Score < 0 || turn.PositionScore.Player1Score > 100 {
+			t.Errorf("turn %d: player1 score out of range: %v", i+1, turn.PositionScore.Player1Score)
+		}
+
+		if turn.PositionScore.Player2Score < 0 || turn.PositionScore.Player2Score > 100 {
+			t.Errorf("turn %d: player2 score out of range: %v", i+1, turn.PositionScore.Player2Score)
+		}
+	}
+}
+
+func TestParseShowdownLogConsecutiveSwitches(t *testing.T) {
+	logWithSwitches := `|j|☆Player1
+|j|☆Player2
+|player|p1|Player1|test|1500
+|player|p2|Player2|test|1500
+|tier|[Gen 9] VGC 2025 Reg H (Bo3)
+|poke|p1|Poke1, L50|
+|poke|p1|Poke2, L50|
+|poke|p1|Poke3, L50|
+|poke|p2|Poke1, L50|
+|poke|p2|Poke2, L50|
+|teamsize|p1|3
+|teamsize|p2|2
+|start
+|turn|1
+|switch|p1a: Poke1|Poke1, L50|100/100
+|switch|p2a: Poke1|Poke1, L50|100/100
+|move|p1a: Poke1|Tackle|p2a: Poke1
+|move|p2a: Poke1|Tackle|p1a: Poke1
+|upkeep
+|turn|2
+|switch|p1a: Poke2|Poke2, L50|100/100
+|switch|p2a: Poke2|Poke2, L50|100/100
+|move|p1a: Poke2|Tackle|p2a: Poke2
+|move|p2a: Poke2|Tackle|p1a: Poke2
+|upkeep
+|win|Player1`
+
+	summary, _ := ParseShowdownLog(logWithSwitches)
+
+	totalSwitches := summary.Stats.Player1Stats.SwitchCount + summary.Stats.Player2Stats.SwitchCount
+	if totalSwitches != 4 {
+		t.Errorf("expected 4 switches total, got %d", totalSwitches)
+	}
+}
+
+func TestParseShowdownLogPartialDamage(t *testing.T) {
+	logPartialDamage := `|j|☆Player1
+|j|☆Player2
+|player|p1|Player1|test|1500
+|player|p2|Player2|test|1500
+|tier|[Gen 9] VGC 2025 Reg H (Bo3)
+|poke|p1|Pikachu, L50|
+|poke|p2|Charizard, L50|
+|teamsize|p1|1
+|teamsize|p2|1
+|start
+|turn|1
+|move|p1a: Pikachu|Thunder|p2a: Charizard
+|-damage|p2a: Charizard|50/100
+|move|p2a: Charizard|Flare Blitz|p1a: Pikachu
+|-damage|p1a: Pikachu|25/100
+|upkeep
+|win|Player1`
+
+	summary, _ := ParseShowdownLog(logPartialDamage)
+
+	// Both players should have taken damage
+	p1Taken := summary.Stats.Player1Stats.DamageTaken
+	p2Taken := summary.Stats.Player2Stats.DamageTaken
+	if p1Taken == 0 || p2Taken == 0 {
+		t.Error("expected both players to have taken damage")
+	}
+}
+
+func TestParseShowdownLogNoMoves(t *testing.T) {
+	logNoMoves := `|j|☆Player1
+|j|☆Player2
+|player|p1|Player1|test|1500
+|player|p2|Player2|test|1500
+|tier|[Gen 9] VGC 2025 Reg H (Bo3)
+|start
+|turn|1
+|switch|p1a: Pikachu|Pikachu, L50|100/100
+|switch|p2a: Charizard|Charizard, L50|100/100
+|upkeep
+|win|Player1`
+
+	summary, _ := ParseShowdownLog(logNoMoves)
+
+	if summary == nil {
+		t.Fatal("expected summary")
+	}
+
+	// Should still have turns even without moves
+	if len(summary.Turns) == 0 {
+		t.Error("expected at least one turn")
+	}
+}
+
+func TestParseShowdownLogCriticalHits(t *testing.T) {
+	logCritical := `|j|☆Player1
+|j|☆Player2
+|player|p1|Player1|test|1500
+|player|p2|Player2|test|1500
+|tier|[Gen 9] VGC 2025 Reg H (Bo3)
+|poke|p1|Pikachu, L50|
+|poke|p2|Charizard, L50|
+|teamsize|p1|1
+|teamsize|p2|1
+|start
+|turn|1
+|move|p1a: Pikachu|Thunder|p2a: Charizard
+|-crit|p2a: Charizard
+|-damage|p2a: Charizard|40/100
+|move|p2a: Charizard|Flare Blitz|p1a: Pikachu
+|upkeep
+|win|Player1`
+
+	summary, _ := ParseShowdownLog(logCritical)
+
+	if summary.Stats.CriticalHits == 0 {
+		t.Error("expected critical hit to be counted")
+	}
+}
+
+func TestParseShowdownLogMoveFrequency(t *testing.T) {
+	log := sampleBattleLog()
+	summary, _ := ParseShowdownLog(log)
+
+	if len(summary.Stats.MoveFrequency) == 0 {
+		t.Fatal("expected move frequency map to be populated")
+	}
+
+	// All move counts should be positive
+	for move, count := range summary.Stats.MoveFrequency {
+		if count <= 0 {
+			t.Errorf("move %q has non-positive count: %d", move, count)
+		}
+	}
+}
+
+func TestParseShowdownLogPlayerTeamTracking(t *testing.T) {
+	log := sampleBattleLog()
+	summary, _ := ParseShowdownLog(log)
+
+	if len(summary.Player1.Team) == 0 {
+		t.Error("expected player1 team")
+	}
+
+	if len(summary.Player2.Team) == 0 {
+		t.Error("expected player2 team")
+	}
+
+	// Verify team sizes match
+	if summary.Player1.TotalLeft != len(summary.Player1.Team) {
+		t.Errorf("player1 total left %d doesn't match team size %d", summary.Player1.TotalLeft, len(summary.Player1.Team))
+	}
+}
+
+func TestParseShowdownLogMultipleFaints(t *testing.T) {
+	logMultipleFaints := `|j|☆Player1
+|j|☆Player2
+|player|p1|Player1|test|1500
+|player|p2|Player2|test|1500
+|tier|[Gen 9] VGC 2025 Reg H (Bo3)
+|poke|p1|Poke1, L50|
+|poke|p1|Poke2, L50|
+|poke|p2|Poke1, L50|
+|poke|p2|Poke2, L50|
+|poke|p2|Poke3, L50|
+|teamsize|p1|2
+|teamsize|p2|3
+|start
+|turn|1
+|move|p1a: Poke1|Tackle|p2a: Poke1
+|-damage|p2a: Poke1|0 fnt
+|faint|p2a: Poke1
+|move|p2a: Poke2|Tackle|p1a: Poke1
+|upkeep
+|turn|2
+|switch|p2a: Poke3|Poke3, L50|100/100
+|move|p1a: Poke1|Tackle|p2a: Poke3
+|-damage|p2a: Poke3|0 fnt
+|faint|p2a: Poke3
+|move|p2a: Poke2|Tackle|p1a: Poke1
+|-damage|p1a: Poke1|0 fnt
+|faint|p1a: Poke1
+|upkeep
+|turn|3
+|switch|p1a: Poke2|Poke2, L50|100/100
+|move|p1a: Poke2|Tackle|p2a: Poke2
+|move|p2a: Poke2|Tackle|p1a: Poke2
+|upkeep
+|win|Player1`
+
+	summary, _ := ParseShowdownLog(logMultipleFaints)
+
+	if summary.Player2.Losses != 2 {
+		t.Errorf("expected player2 to have 2 losses, got %d", summary.Player2.Losses)
+	}
+
+	if summary.Player1.Losses != 1 {
+		t.Errorf("expected player1 to have 1 loss, got %d", summary.Player1.Losses)
+	}
+}

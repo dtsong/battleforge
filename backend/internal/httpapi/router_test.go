@@ -84,3 +84,51 @@ func TestRouterEndpointsExist(t *testing.T) {
 		})
 	}
 }
+
+func TestHTTPMethodsNotAllowed(t *testing.T) {
+	logger := observability.NewLogger()
+	router := NewRouter(logger)
+
+	tests := []struct {
+		method string
+		path   string
+	}{
+		{"GET", "/api/showdown/analyze"},      // POST only
+		{"PUT", "/api/showdown/analyze"},      // POST only
+		{"DELETE", "/api/showdown/analyze"},   // POST only
+		{"PUT", "/api/showdown/replays/123"},  // GET only
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.method+" "+tt.path, func(t *testing.T) {
+			req := httptest.NewRequest(tt.method, tt.path, nil)
+			w := httptest.NewRecorder()
+
+			router.ServeHTTP(w, req)
+
+			if w.Code != http.StatusMethodNotAllowed && w.Code != http.StatusNotFound {
+				t.Errorf("expected 405 or 404, got %d", w.Code)
+			}
+		})
+	}
+}
+
+func TestRouterResponseHeaders(t *testing.T) {
+	logger := observability.NewLogger()
+	router := NewRouter(logger)
+
+	req := httptest.NewRequest("GET", "/healthz", nil)
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("expected status 200, got %d", w.Code)
+	}
+
+	contentType := w.Header().Get("Content-Type")
+	if contentType != "text/plain" && contentType != "" {
+		// Health check should return plain text
+		t.Logf("content type: %q", contentType)
+	}
+}

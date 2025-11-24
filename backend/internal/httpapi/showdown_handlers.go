@@ -155,6 +155,7 @@ func (s *Server) handleAnalyzeShowdown(w http.ResponseWriter, r *http.Request) {
 
 	// Store battle in database
 	battleRecord := &db.Battle{
+		ID:          battleSummary.ID,
 		Format:      battleSummary.Format,
 		Timestamp:   battleSummary.Timestamp,
 		DurationSec: battleSummary.Duration,

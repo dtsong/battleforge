@@ -5,9 +5,9 @@ import (
 	"net/http"
 	"os"
 
-	_ "github.com/lib/pq"
 	"github.com/dtsong/vgccorner/backend/internal/httpapi"
 	"github.com/dtsong/vgccorner/backend/internal/observability"
+	_ "github.com/lib/pq"
 )
 
 func main() {
