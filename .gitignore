@@ -87,3 +87,7 @@ Thumbs.db
 *.seed
 *.pid.lock
 backend/vgccorner-api
+
+# Docker
+postgres_data/
+docker-compose.override.yml
